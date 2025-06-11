@@ -1,21 +1,26 @@
-NetworkAnalysisSuite - MTRoute is an advanced network analysis tool built in C# and .NET, inspired by WinMTR. It provides a comprehensive view of the route taken by packets to a destination, displaying:
 
-All hops along the route.
+![1](https://github.com/user-attachments/assets/2d85cfb5-9c1f-4b47-8578-f98b73c0cc30)
 
-Latency statistics (min, average, max).
+O NetworkAnalysisSuite - MTRoute é uma ferramenta avançada de análise de rede desenvolvida em C# e .NET, com funcionalidade semelhante ao WinMTR. Seu objetivo é fornecer um diagnóstico detalhado do caminho percorrido pelos pacotes até um destino, exibindo:
 
-Per-hop jitter and packet loss.
+Todos os saltos (hops) até o destino.
 
-Internal vs external IP detection.
+Estatísticas de latência (mínima, média, máxima).
 
-ASN, provider, and geolocation info for each IP.
+Jitter de cada salto.
 
-Automatic diagnostics highlighting significant issues.
+Perda de pacotes individual por salto.
 
-Customizable options:
+Identificação de IPs internos e externos.
 
-DNS resolver (system or custom).
+Exibição do ASN, provedor e localização geográfica de cada IP.
 
-Packet interval (ms).
+Diagnóstico automático com sugestões em caso de perda significativa.
 
-ICMP packet size.
+Customização de:
+
+DNS (usando DNS do sistema ou Google / Cloudflare).
+
+Intervalo entre pacotes (em ms).
+
+Tamanho dos pacotes ICMP.
