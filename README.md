@@ -2,7 +2,7 @@
 ![1](https://github.com/user-attachments/assets/2d85cfb5-9c1f-4b47-8578-f98b73c0cc30)
 Exemplo de análise ativa até o IP 8.8.8.8 (Google DNS).
 
-O NetworkAnalysisSuite - MTRoute é uma ferramenta avançada de análise de rede desenvolvida em C# e .NET, com funcionalidade semelhante ao WinMTR. Seu objetivo é fornecer um diagnóstico detalhado do caminho percorrido pelos pacotes até um destino, exibindo:
+**O NetworkAnalysisSuite - MTRoute é uma ferramenta avançada de análise de rede desenvolvida em C# e .NET, com funcionalidade semelhante ao WinMTR. Seu objetivo é fornecer um diagnóstico detalhado do caminho percorrido pelos pacotes até um destino, exibindo:**
 
 Todos os saltos (hops) até o destino.
 
@@ -26,10 +26,16 @@ Intervalo entre pacotes (em ms).
 
 Tamanho dos pacotes ICMP.
 
-Tecnologias utilizadas
+# Tecnologias utilizadas:
+
 .NET / C#
+
 Windows Forms
+
 APIs de GeoIP e ASN (via consulta DNS reversa ou serviços integrados)
 
-🚧 Status
-Projeto em desenvolvimento contínuo. Sugestões e melhorias são bem-vindas!
+#  🚧 Status:
+
+Projeto em desenvolvimento. 
+
+Sugestões e melhorias são bem-vindas!
