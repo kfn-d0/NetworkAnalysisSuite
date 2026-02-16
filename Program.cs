@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -44,6 +45,42 @@ namespace NetworkAnalysisSuite
     }
     #endregion
 
+    public static class HistoryService
+    {
+        private static string FilePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NetworkAnalysisSuite", "history.json");
+
+        public static List<string> Load()
+        {
+            try
+            {
+                if (File.Exists(FilePath))
+                {
+                    var json = File.ReadAllText(FilePath);
+                    return JsonConvert.DeserializeObject<List<string>>(json) ?? new List<string>();
+                }
+            }
+            catch { }
+            return new List<string>();
+        }
+
+        public static void Save(string host)
+        {
+            try
+            {
+                var history = Load();
+                history.RemoveAll(h => h.Equals(host, StringComparison.OrdinalIgnoreCase));
+                history.Insert(0, host);
+                if (history.Count > 20) history = history.Take(20).ToList();
+
+                var dir = Path.GetDirectoryName(FilePath);
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+                File.WriteAllText(FilePath, JsonConvert.SerializeObject(history));
+            }
+            catch { }
+        }
+    }
+
     public class HopInfo
     {
         public int HopNumber { get; set; }
@@ -73,15 +110,15 @@ namespace NetworkAnalysisSuite
         private RichTextBox rtbPathPing;
         private RichTextBox rtbDiagnosis;
         private GroupBox grpDiagnosis;
-        private TextBox txtHost;
+        private ComboBox cboHost;
         private Button btnStart, btnStop, btnClear, btnAbout;
         private Label lblStatus, lblHost;
         private GroupBox grpOptions;
         private NumericUpDown numInterval, numPacketSize;
         private Label lblInterval, lblPacketSize;
         private CheckBox chkResolveNames;
-        private ComboBox cmbDnsServer;
-        private Label lblDnsServer;
+        private ComboBox cmbDnsServer, cmbIpPreference;
+        private Label lblDnsServer, lblIpPreference;
         private ToolTip toolTip;
         private System.Windows.Forms.Timer updateTimer;
         private CancellationTokenSource cancellationTokenSource;
@@ -129,19 +166,29 @@ namespace NetworkAnalysisSuite
             this.Font = new Font("Segoe UI", 9F);
 
             lblHost = new Label { Text = "Host:", Location = new Point(12, 15), Size = new Size(40, 23), TextAlign = ContentAlignment.MiddleLeft };
-            txtHost = new TextBox { Location = new Point(55, 12), Size = new Size(180, 23), Text = "google.com" };
+            
+            cboHost = new ComboBox { Location = new Point(55, 12), Size = new Size(180, 23), DropDownStyle = ComboBoxStyle.DropDown };
+            try {
+                var history = HistoryService.Load();
+                cboHost.Items.AddRange(history.ToArray());
+                if (history.Count > 0) cboHost.Text = history[0];
+                else cboHost.Text = "google.com";
+            } catch { cboHost.Text = "google.com"; }
+
             btnStart = new Button { Text = "Iniciar Análise", Location = new Point(250, 10), Size = new Size(90, 27), BackColor = Color.FromArgb(192, 255, 192) };
             btnStart.Click += BtnStart_Click;
             toolTip.SetToolTip(btnStart, "Inicia o monitoramento contínuo (MTR) e a análise da rota (PathPing).");
+            
             btnStop = new Button { Text = "Parar", Location = new Point(350, 10), Size = new Size(90, 27), BackColor = Color.FromArgb(255, 192, 192), Enabled = false };
             btnStop.Click += BtnStop_Click;
+            
             btnClear = new Button { Text = "Limpar", Location = new Point(450, 10), Size = new Size(90, 27), BackColor = Color.FromArgb(192, 224, 255) };
             btnClear.Click += BtnClear_Click;
             
             btnAbout = new Button { Text = "Sobre", Location = new Point(550, 10), Size = new Size(90, 27) };
             btnAbout.Click += BtnAbout_Click;
             
-            grpOptions = new GroupBox { Text = "Opções de Análise", Location = new Point(12, 45), Size = new Size(700, 55) };
+            grpOptions = new GroupBox { Text = "Opções de Análise", Location = new Point(12, 45), Size = new Size(950, 55) };
             lblInterval = new Label { Text = "Intervalo (ms):", Location = new Point(10, 22), Size = new Size(90, 20) };
             numInterval = new NumericUpDown { Location = new Point(100, 20), Size = new Size(70, 23), Minimum = 100, Maximum = 10000, Value = 500, Increment = 50 };
             lblPacketSize = new Label { Text = "Tam. Pacote:", Location = new Point(180, 22), Size = new Size(80, 20) };
@@ -149,20 +196,26 @@ namespace NetworkAnalysisSuite
             
             chkResolveNames = new CheckBox { Text = "Resolver Nomes", Checked = true, Location = new Point(350, 22), AutoSize = true };
             lblDnsServer = new Label { Text = "Servidor DNS:", Location = new Point(480, 22), Size = new Size(80, 20) };
-            cmbDnsServer = new ComboBox { Location = new Point(565, 20), Size = new Size(120, 23), DropDownStyle = ComboBoxStyle.DropDownList };
+            cmbDnsServer = new ComboBox { Location = new Point(565, 20), Size = new Size(150, 23), DropDownStyle = ComboBoxStyle.DropDownList };
             cmbDnsServer.Items.AddRange(new object[] { "Padrão do Sistema", "Google (8.8.8.8)", "Cloudflare (1.1.1.1)", "OpenDNS (208.67.222.222)" });
             cmbDnsServer.SelectedIndex = 0;
 
-            grpOptions.Controls.AddRange(new Control[] { lblInterval, numInterval, lblPacketSize, numPacketSize, chkResolveNames, lblDnsServer, cmbDnsServer });
+            lblIpPreference = new Label { Text = "Protocolo:", Location = new Point(730, 22), Size = new Size(70, 20) };
+            cmbIpPreference = new ComboBox { Location = new Point(800, 20), Size = new Size(120, 23), DropDownStyle = ComboBoxStyle.DropDownList };
+            cmbIpPreference.Items.AddRange(new object[] { "Priorizar IPv4", "Priorizar IPv6" });
+            cmbIpPreference.SelectedIndex = 0;
 
-            lblStatus = new Label { Text = "Pronto", Location = new Point(720, 60), Font = new Font("Segoe UI", 9F, FontStyle.Bold), ForeColor = Color.DarkBlue, AutoSize = true };
+            grpOptions.Controls.AddRange(new Control[] { lblInterval, numInterval, lblPacketSize, numPacketSize, chkResolveNames, lblDnsServer, cmbDnsServer, lblIpPreference, cmbIpPreference });
+
+            lblStatus = new Label { Text = "Pronto", Location = new Point(970, 60), Font = new Font("Segoe UI", 9F, FontStyle.Bold), ForeColor = Color.DarkBlue, AutoSize = true };
 
             splitContainer.Location = new Point(12, 110);
             splitContainer.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             splitContainer.Size = new Size(this.ClientSize.Width - 24, this.ClientSize.Height - 122);
             splitContainer.SplitterDistance = (int)(this.ClientSize.Width * 0.65);
+            splitContainer.IsSplitterFixed = true;
 
-            grpDiagnosis.Text = "Diagnóstico Automático";
+            grpDiagnosis.Text = "Diagnóstico";
             grpDiagnosis.Dock = DockStyle.Bottom;
             grpDiagnosis.Height = 130;
             rtbDiagnosis.Dock = DockStyle.Fill;
@@ -178,6 +231,13 @@ namespace NetworkAnalysisSuite
             dgvResults.RowHeadersVisible = false;
             dgvResults.AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(240, 248, 255) };
             
+            var contextMenu = new ContextMenuStrip();
+            var copyIpItem = new ToolStripMenuItem("Copiar IP");
+            copyIpItem.Click += (s, e) => CopyIpToClipboard();
+            contextMenu.Items.Add(copyIpItem);
+            dgvResults.ContextMenuStrip = contextMenu;
+            dgvResults.CellMouseDown += DgvResults_CellMouseDown;
+
             dgvResults.Columns.AddRange(new DataGridViewColumn[] {
                 new DataGridViewTextBoxColumn { Name = "Hop", HeaderText = "#", Width = 35 },
                 new DataGridViewTextBoxColumn { Name = "Hostname", HeaderText = "IP [Hostname]", Width = 220 },
@@ -209,7 +269,7 @@ namespace NetworkAnalysisSuite
             rtbPathPing.Font = new Font("Consolas", 10F);
             rtbPathPing.Text = "O relatório da Análise de Rota (PathPing) aparecerá aqui...";
 
-            this.Controls.AddRange(new Control[] { lblHost, txtHost, btnStart, btnStop, btnClear, btnAbout, grpOptions, lblStatus, splitContainer });
+            this.Controls.AddRange(new Control[] { lblHost, cboHost, btnStart, btnStop, btnClear, btnAbout, grpOptions, lblStatus, splitContainer });
             this.splitContainer.Panel1.Controls.Add(this.dgvResults);
             this.splitContainer.Panel1.Controls.Add(this.grpDiagnosis);
             this.splitContainer.Panel2.Controls.Add(this.rtbPathPing);
@@ -227,9 +287,19 @@ namespace NetworkAnalysisSuite
         #region UI Event Handlers
         private async void BtnStart_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(txtHost.Text)) { MessageBox.Show("Digite um host.", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+            if (string.IsNullOrWhiteSpace(cboHost.Text)) { MessageBox.Show("Digite um host.", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
 
-            targetHostForDisplay = txtHost.Text.Trim();
+            targetHostForDisplay = cboHost.Text.Trim();
+            
+            try 
+            {
+                HistoryService.Save(targetHostForDisplay);
+                var history = HistoryService.Load();
+                cboHost.Items.Clear();
+                cboHost.Items.AddRange(history.ToArray());
+                cboHost.Text = targetHostForDisplay;
+            } catch {}
+
             isRunning = true;
             isAnalyzingPath = true;
             SetUiState();
@@ -752,17 +822,29 @@ namespace NetworkAnalysisSuite
 
         private async Task<string> ResolveHostWithCustomDnsAsync(string host)
         {
-            if (IPAddress.TryParse(host, out _)) return host;
+            if (IPAddress.TryParse(host, out IPAddress parsedIp)) return parsedIp.ToString();
+
+            bool preferIpv6 = false;
+            this.Invoke(new Action(() => {
+                preferIpv6 = cmbIpPreference.SelectedIndex == 1;
+            }));
 
             try
             {
                 var addresses = await Dns.GetHostAddressesAsync(host);
-                var ipv4Address = addresses.FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+                IPAddress target = null;
 
-                if (ipv4Address != null)
+                if (preferIpv6)
+                    target = addresses.FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6) 
+                            ?? addresses.FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+                else
+                    target = addresses.FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork) 
+                            ?? addresses.FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6);
+
+                if (target != null)
                 {
-                    Debug.WriteLine($"Resolução via Sistema (Dns.GetHostAddressesAsync) com sucesso para {host}: {ipv4Address}");
-                    return ipv4Address.ToString();
+                    Debug.WriteLine($"Resolução via Sistema sucesso para {host}: {target}");
+                    return target.ToString();
                 }
             }
             catch (Exception sysDnsEx)
@@ -770,15 +852,30 @@ namespace NetworkAnalysisSuite
                 Debug.WriteLine($"Falha na resolução padrão do sistema para {host}: {sysDnsEx.Message}. Tentando com DnsClient...");
             }
 
-            Debug.WriteLine($"Resolução via sistema falhou ou não retornou IPv4. Usando DnsClient para {host}.");
+            Debug.WriteLine($"Resolução via sistema falhou. Usando DnsClient para {host}.");
             try
             {
                 var lookupClient = GetSelectedDnsClient();
+                
+                // Try AAAA first if IPv6 preferred
+                if (preferIpv6)
+                {
+                   var result6 = await lookupClient.QueryAsync(host, QueryType.AAAA);
+                   var record6 = result6.Answers.AaaaRecords().FirstOrDefault();
+                   if (record6 != null) return record6.Address.ToString();
+                }
+
+                // Try A (IPv4)
                 var result = await lookupClient.QueryAsync(host, QueryType.A);
                 var record = result.Answers.ARecords().FirstOrDefault();
-                if (record != null)
+                if (record != null) return record.Address.ToString();
+
+                // If IPv4 preferred but failed, try AAAA as fallback
+                if (!preferIpv6)
                 {
-                    return record.Address.ToString();
+                   var result6 = await lookupClient.QueryAsync(host, QueryType.AAAA);
+                   var record6 = result6.Answers.AaaaRecords().FirstOrDefault();
+                   if (record6 != null) return record6.Address.ToString();
                 }
             }
             catch (Exception ex)
@@ -868,50 +965,53 @@ namespace NetworkAnalysisSuite
                     var row = dgvResults.Rows.Cast<DataGridViewRow>().FirstOrDefault(r => r.Cells["Hop"].Value != null && (int)r.Cells["Hop"].Value == hop.HopNumber);
                     if (row == null) continue;
 
-                    if (hop.WarmupPingsSent <= WARMUP_PING_COUNT)
+                    lock (hop)
                     {
-                        row.Cells["Sent"].Value = 0;
-                        row.Cells["Loss"].Value = "0.0%";
-                    }
-                    else
-                    {
-                        double lossPercentage = hop.TotalSent > 0 ? (double)hop.PacketsLost / hop.TotalSent * 100 : 0;
-                        double avgPing = hop.PingTimes.Where(p => p >= 0).DefaultIfEmpty(0).Average();
-                        row.Cells["Loss"].Value = $"{lossPercentage:F1}%";
-                        row.Cells["Sent"].Value = hop.TotalSent;
-                        row.Cells["Last"].Value = hop.LastPing >= 0 ? hop.LastPing.ToString() : "*";
-                        row.Cells["Avg"].Value = avgPing > 0 ? $"{avgPing:F1}" : "*";
-                        row.Cells["Best"].Value = hop.BestPing >= 0 ? hop.BestPing.ToString() : "*";
-                        row.Cells["Worst"].Value = hop.WorstPing > 0 ? hop.WorstPing.ToString() : "*";
-                        row.Cells["Jitter"].Value = hop.Jitter > 0 ? $"{hop.Jitter:F1}" : "*";
-                        Color rowColor = Color.White;
-                        if (lossPercentage > 25) rowColor = Color.FromArgb(255, 192, 192); else if (lossPercentage > 5) rowColor = Color.FromArgb(255, 255, 192); else if (hop.WorstPing > 200) rowColor = Color.FromArgb(255, 224, 192);
-                        row.DefaultCellStyle.BackColor = (row.Index % 2 != 0 && rowColor == Color.White) ? dgvResults.AlternatingRowsDefaultCellStyle.BackColor : rowColor;
-                    }
-                    
-                    string hostnameDisplay = hop.IPAddress;
-                    if (chkResolveNames.Checked)
-                    {
-                        if (hop.IsResolvingHostname)
+                        if (hop.WarmupPingsSent <= WARMUP_PING_COUNT)
                         {
-                            hostnameDisplay += " [Resolvendo...]";
+                            row.Cells["Sent"].Value = 0;
+                            row.Cells["Loss"].Value = "0.0%";
                         }
-                        else if (!string.IsNullOrEmpty(hop.Hostname) && hop.Hostname != hop.IPAddress)
+                        else
                         {
-                            hostnameDisplay += $" [{hop.Hostname}]";
+                            double lossPercentage = hop.TotalSent > 0 ? (double)hop.PacketsLost / hop.TotalSent * 100 : 0;
+                            double avgPing = hop.PingTimes.Count > 0 ? hop.PingTimes.Where(p => p >= 0).DefaultIfEmpty(0).Average() : 0;
+                            row.Cells["Loss"].Value = $"{lossPercentage:F1}%";
+                            row.Cells["Sent"].Value = hop.TotalSent;
+                            row.Cells["Last"].Value = hop.LastPing >= 0 ? hop.LastPing.ToString() : "*";
+                            row.Cells["Avg"].Value = avgPing > 0 ? $"{avgPing:F1}" : "*";
+                            row.Cells["Best"].Value = hop.BestPing >= 0 ? hop.BestPing.ToString() : "*";
+                            row.Cells["Worst"].Value = hop.WorstPing > 0 ? hop.WorstPing.ToString() : "*";
+                            row.Cells["Jitter"].Value = hop.Jitter > 0 ? $"{hop.Jitter:F1}" : "*";
+                            Color rowColor = Color.White;
+                            if (lossPercentage > 25) rowColor = Color.FromArgb(255, 192, 192); else if (lossPercentage > 5) rowColor = Color.FromArgb(255, 255, 192); else if (hop.WorstPing > 200) rowColor = Color.FromArgb(255, 224, 192);
+                            row.DefaultCellStyle.BackColor = (row.Index % 2 != 0 && rowColor == Color.White) ? dgvResults.AlternatingRowsDefaultCellStyle.BackColor : rowColor;
                         }
-                    }
-                    row.Cells["Hostname"].Value = hostnameDisplay;
 
-                    if (hop.IsFetchingGeoInfo)
-                    {
-                        row.Cells["Asn"].Value = "Buscando...";
-                        row.Cells["Location"].Value = "Buscando...";
-                    }
-                    else
-                    {
-                         row.Cells["Asn"].Value = hop.AsnInfo;
-                         row.Cells["Location"].Value = hop.Location;
+                        string hostnameDisplay = hop.IPAddress;
+                        if (chkResolveNames.Checked)
+                        {
+                            if (hop.IsResolvingHostname)
+                            {
+                                hostnameDisplay += " [Resolvendo...]";
+                            }
+                            else if (!string.IsNullOrEmpty(hop.Hostname) && hop.Hostname != hop.IPAddress)
+                            {
+                                hostnameDisplay += $" [{hop.Hostname}]";
+                            }
+                        }
+                        row.Cells["Hostname"].Value = hostnameDisplay;
+
+                        if (hop.IsFetchingGeoInfo)
+                        {
+                            row.Cells["Asn"].Value = "Buscando...";
+                            row.Cells["Location"].Value = "Buscando...";
+                        }
+                        else
+                        {
+                            row.Cells["Asn"].Value = hop.AsnInfo;
+                            row.Cells["Location"].Value = hop.Location;
+                        }
                     }
                 }
             }
@@ -944,13 +1044,51 @@ namespace NetworkAnalysisSuite
             this.Invoke(new Action(() => {
                 bool isBusy = isRunning || isAnalyzingPath;
                 btnStart.Enabled = !isBusy;
-                txtHost.Enabled = !isBusy;
+                cboHost.Enabled = !isBusy;
                 grpOptions.Enabled = !isBusy;
                 btnClear.Enabled = !isBusy;
                 btnAbout.Enabled = !isBusy;
 
                 btnStop.Enabled = isRunning;
             }));
+        }
+
+        private void DgvResults_CellMouseDown(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right && e.RowIndex >= 0)
+            {
+                dgvResults.CurrentCell = dgvResults.Rows[e.RowIndex].Cells[e.ColumnIndex >= 0 ? e.ColumnIndex : 1];
+                dgvResults.Rows[e.RowIndex].Selected = true;
+            }
+        }
+
+        private void CopyIpToClipboard()
+        {
+            if (dgvResults.CurrentRow != null && dgvResults.CurrentRow.Index >= 0)
+            {
+                var hopCell = dgvResults.CurrentRow.Cells["Hop"];
+                if (hopCell != null && hopCell.Value is int hopNum)
+                {
+                    string ip = null;
+                    lock (hops)
+                    {
+                        if (hops.ContainsKey(hopNum))
+                        {
+                            ip = hops[hopNum].IPAddress;
+                        }
+                    }
+
+                    if (!string.IsNullOrEmpty(ip) && ip != "*" && ip != "N/A")
+                    {
+                        Clipboard.SetText(ip);
+                        MessageBox.Show($"IP {ip} copiado para a área de transferência!", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    else
+                    {
+                         MessageBox.Show("Não há um IP válido para copiar neste salto.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                }
+            }
         }
 
         private void UpdateStatus(string message, Color color)
@@ -981,7 +1119,7 @@ namespace NetworkAnalysisSuite
 
             var lblTitle = new Label
             {
-                Text = "Network Analysis Suite - MTRoute v1.2",
+                Text = "Network Analysis Suite - MTRoute v1.5",
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 AutoSize = true,
                 Location = new Point(12, 12)
