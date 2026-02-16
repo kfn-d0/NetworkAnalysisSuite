@@ -1,41 +1,52 @@
+# MTRoute - Network Analysis Suite
+
 🖼️ Captura de tela
 ![1](https://github.com/user-attachments/assets/2d85cfb5-9c1f-4b47-8578-f98b73c0cc30)
 Exemplo de análise ativa até o IP 8.8.8.8 (Google DNS).
 
-**O NetworkAnalysisSuite - MTRoute é uma ferramenta avançada de análise de rede desenvolvida em C# e .NET, com funcionalidade semelhante ao WinMTR. Seu objetivo é fornecer um diagnóstico detalhado do caminho percorrido pelos pacotes até um destino, exibindo:**
+Ferramenta de diagnóstico de rede avançada "tudo em um" para Windows que combina as funcionalidades de Traceroute, Ping e MTR (My Traceroute). Ele fornece monitoramento de tráfego em tempo real, análise detalhada de rotas e diagnóstico automático da saúde da rede em uma interface moderna e fácil de usar.
 
-Todos os saltos (hops) até o destino.
+## Principais Recursos
 
-Estatísticas de latência (mínima, média, máxima).
+*   **Monitoramento MTR em Tempo Real**: Envia pings continuamente para cada salto na rota para detectar perda de pacotes e picos de latência ao longo do tempo.
+*   **Análise PathPing**: Realiza uma análise detalhada com múltiplos pacotes na rota para identificar estatísticas confiáveis para cada nó.
+*   **Histórico Inteligente**: Salva automaticamente suas consultas recentes. Acesse-as rapidamente através do campo de entrada suspenso.
+*   **Suporte a IPv6**: Suporte total a IPv6. Escolha priorizar resolução IPv4 ou IPv6 para hosts dual-stack.
+*   **Detecção GeoIP e ASN**: Resolve e exibe automaticamente a Localização (Cidade/País) e ASN (Provedor/Organização) para cada salto usando múltiplas APIs públicas.
+*   **Diagnóstico Visual**:
+    *   **Linhas Coloridas**: Identifique instantaneamente nós problemáticos (Alta Latência = Laranja/Vermelho, Perda de Pacote = Vermelho).
+    *   **Cálculo de Jitter**: Monitora a variação nos tempos de ping para detectar instabilidade na rede.
+*   **Diagnóstico Automático**: Um assistente inteligente analisa os dados coletados e fornece um resumo em texto simples sobre a saúde da sua rede, apontando problemas específicos como falhas no roteador local ou congestionamento no provedor.
+*   **Menu de Contexto**: Clique com o botão direito em qualquer linha de resultado para copiar o endereço IP para a área de transferência.
 
-Jitter de cada salto.
+## Requisitos
 
-Perda de pacotes individual por salto.
+*   **SO**: Windows 10 ou Windows 11
+*   **Runtime**: .NET 9.0 Desktop Runtime
 
-Identificação de IPs internos e externos.
+## Como Usar
 
-Exibição do ASN, provedor e localização geográfica de cada IP.
+1.  **Digite um Host**: Digite um domínio (ex: `google.com`) ou um endereço IP na caixa de entrada. Você também pode selecionar um host consultado anteriormente no menu suspenso.
+2.  **Selecione as Opções** (Opcional):
+    *   *Intervalo*: Com que frequência os pings são enviados (padrão: 500ms).
+    *   *Tam. Pacote*: Tamanho do pacote de ping (padrão: 32 bytes).
+    *   *Servidor DNS*: Escolha um resolvedor DNS específico (Padrão do Sistema, Google, Cloudflare ou OpenDNS).
+    *   *Protocolo*: Escolha priorizar **IPv4** ou **IPv6**.
+3.  **Iniciar**: Clique em **Iniciar Análise**.
+    *   **Fase 1**: A ferramenta descobre a rota para o destino.
+    *   **Fase 2**: Inicia o monitoramento contínuo (MTR) de todos os saltos descobertos.
+    *   **Fase 3**: Simultaneamente, executa uma análise estilo "PathPing" para estatísticas mais profundas.
+4.  **Analisar**:
+    *   Observe as colunas **Loss %** (Perda) e **Worst** (Pior) na grade.
+    *   Leia o painel **Diagnóstico Automático** na parte inferior para um resumo inteligente dos problemas.
+    *   Veja a saída bruta do **PathPing** no painel à direita.
+5.  **Parar**: Clique em **Parar** para encerrar a sessão.
 
-Diagnóstico automático com sugestões em caso de perda significativa.
+## Troubleshooting
 
-Customização de:
+*   **Falha ao descobrir a rota**: Verifique se há conexão ativa com a internet e se o ICMP (Ping) não está bloqueado pelo firewall local.
+*   **No GeoIP Data**: A ferramenta utiliza APIs gratuitas (ip-api.com, ipinfo.io). Alto volume de uso pode gerar limitação temporária de requisições.
 
-DNS (usando DNS do sistema ou Google / Cloudflare).
-
-Intervalo entre pacotes (em ms).
-
-Tamanho dos pacotes ICMP.
-
-# Tecnologias utilizadas:
-
-.NET / C#
-
-Windows Forms
-
-APIs de GeoIP e ASN (via consulta DNS reversa ou serviços integrados)
-
-#  🚧 Status:
-
-Projeto em desenvolvimento. 
+## Projeto em desenvolvimento. 
 
 Sugestões e melhorias são bem-vindas!
